@@ -15,6 +15,7 @@ If a commit message violates any of these rules:
 - Clearly mention each rule that was violated.
 - Suggest a fix for each violation.
 - Include the specific commit hash in your comment to allow GitHub to link to it.
+- Be polite and constructive in your feedback.
 - Mention the commit subject line in your comment.
 
 ### Exception
