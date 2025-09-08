@@ -1,3 +1,7 @@
+// Package assert provides assertion functions for tests.
+// This is an internal package that was created to provide a simple way to write tests.
+//
+// The idea was to do not add a dependency on a testing framework.
 package assert
 
 import (
@@ -21,7 +25,11 @@ func formatSuffix(msgFormat string, args ...any) string {
 	return " - " + fmt.Sprintf(msgFormat, args...)
 }
 
-// Comparable types (numbers, strings, pointers to the same object, etc.).
+// Equal asserts that two values are equal.
+//
+// It can be used with comparable types: numbers, strings, pointers to the same object, etc.
+//
+// For any other types, use [DeepEqual].
 func Equal(tb miniTB, want, got any) {
 	tb.Helper()
 	Equalf(tb, want, got, "")
@@ -35,7 +43,11 @@ func Equalf(tb miniTB, want, got any, msgFormat string, args ...any) {
 	}
 }
 
-// Anything else (slices, maps, structs with slices...).
+// DeepEqual asserts that two values are deeply equal.
+//
+// It can be used with slices, maps, structs with slices...
+//
+// Please consider [Equal] for other types.
 func DeepEqual(tb miniTB, want, got any) {
 	tb.Helper()
 	DeepEqualf(tb, want, got, "")
