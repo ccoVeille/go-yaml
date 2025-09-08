@@ -6,10 +6,10 @@ linters:
   - govet
   - misspell
   - nolintlint
+  - staticcheck
   disable:
   - errcheck
   - ineffassign
-  - staticcheck
   - unused
   exclusions:
     generated: lax
@@ -35,6 +35,13 @@ linters:
       disable:
       - fieldalignment
       - shadow
+    staticcheck:
+      checks:
+      # enable all rules
+      - all
+      # disable some of them
+      - -QF1001  # De Morgan's laws is too opinionated.
+      - -ST1003  # The codebase has too many underscores in identifiers for now.
 
 formatters:
   enable:
