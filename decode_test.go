@@ -1858,8 +1858,8 @@ var unmarshalNullTests = []struct {
 	pristine, expected func() any
 }{{
 	"null",
-	func() any { var v any; v = "v"; return &v },
-	func() any { var v any; v = nil; return &v },
+	func() any { var v any = "v"; return &v },
+	func() any { var v any = nil; return &v },
 }, {
 	"null",
 	func() any { s := "s"; return &s },
