@@ -104,6 +104,24 @@ const (
 	FOLDED_SCALAR_STYLE                                // The folded scalar style.
 )
 
+// Convert a yamlScalarStyle to a string representation
+func (style ScalarStyle) String() string {
+	switch style {
+	case PLAIN_SCALAR_STYLE:
+		return "Plain"
+	case SINGLE_QUOTED_SCALAR_STYLE:
+		return "Single"
+	case DOUBLE_QUOTED_SCALAR_STYLE:
+		return "Double"
+	case LITERAL_SCALAR_STYLE:
+		return "Literal"
+	case FOLDED_SCALAR_STYLE:
+		return "Folded"
+	default:
+		return ""
+	}
+}
+
 type SequenceStyle Style
 
 // Sequence styles.
