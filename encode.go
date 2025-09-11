@@ -29,8 +29,8 @@ import (
 )
 
 type encoder struct {
-	emitter  yaml_emitter_t
-	event    yaml_event_t
+	emitter  yamlEmitter
+	event    yamlEvent
 	out      []byte
 	flow     bool
 	indent   int
@@ -38,18 +38,20 @@ type encoder struct {
 }
 
 func newEncoder() *encoder {
-	e := &encoder{}
-	yaml_emitter_initialize(&e.emitter)
-	yaml_emitter_set_output_string(&e.emitter, &e.out)
-	yaml_emitter_set_unicode(&e.emitter, true)
+	e := &encoder{
+		emitter: newYAMLEmitter(),
+	}
+	e.emitter.setOutputString(&e.out)
+	e.emitter.setUnicode(true)
 	return e
 }
 
 func newEncoderWithWriter(w io.Writer) *encoder {
-	e := &encoder{}
-	yaml_emitter_initialize(&e.emitter)
-	yaml_emitter_set_output_writer(&e.emitter, w)
-	yaml_emitter_set_unicode(&e.emitter, true)
+	e := &encoder{
+		emitter: newYAMLEmitter(),
+	}
+	e.emitter.setOutputWriter(w)
+	e.emitter.setUnicode(true)
 	return e
 }
 
@@ -61,24 +63,24 @@ func (e *encoder) init() {
 		e.indent = 4
 	}
 	e.emitter.best_indent = e.indent
-	yaml_stream_start_event_initialize(&e.event, yaml_UTF8_ENCODING)
+	e.event = newStreamStartEvent(yaml_UTF8_ENCODING)
 	e.emit()
 	e.doneInit = true
 }
 
 func (e *encoder) finish() {
 	e.emitter.open_ended = false
-	yaml_stream_end_event_initialize(&e.event)
+	e.event = newStreamEndEvent()
 	e.emit()
 }
 
 func (e *encoder) destroy() {
-	yaml_emitter_delete(&e.emitter)
+	e.emitter.delete()
 }
 
 func (e *encoder) emit() {
 	// This will internally delete the e.event value.
-	e.must(yaml_emitter_emit(&e.emitter, &e.event))
+	e.must(e.emitter.emit(&e.event))
 }
 
 func (e *encoder) must(ok bool) {
@@ -100,17 +102,17 @@ func (e *encoder) marshalDoc(tag string, in reflect.Value) {
 	if node != nil && node.Kind == DocumentNode {
 		e.nodev(in)
 	} else {
-		yaml_document_start_event_initialize(&e.event, nil, nil, true)
+		e.event = newDocumentStartEvent(nil, nil, true)
 		e.emit()
 		e.marshal(tag, in)
-		yaml_document_end_event_initialize(&e.event, true)
+		e.event = newDocumentEndEvent(true)
 		e.emit()
 	}
 }
 
 func (e *encoder) marshal(tag string, in reflect.Value) {
 	tag = shortTag(tag)
-	if !in.IsValid() || in.Kind() == reflect.Ptr && in.IsNil() {
+	if !in.IsValid() || in.Kind() == reflect.Pointer && in.IsNil() {
 		e.nilv()
 		return
 	}
@@ -121,7 +123,7 @@ func (e *encoder) marshal(tag string, in reflect.Value) {
 		return
 	case Node:
 		if !in.CanAddr() {
-			var n = reflect.New(in.Type()).Elem()
+			n := reflect.New(in.Type()).Elem()
 			n.Set(in)
 			in = n
 		}
@@ -162,7 +164,7 @@ func (e *encoder) marshal(tag string, in reflect.Value) {
 		e.marshal(tag, in.Elem())
 	case reflect.Map:
 		e.mapv(tag, in)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		e.marshal(tag, in.Elem())
 	case reflect.Struct:
 		e.structv(tag, in)
@@ -197,7 +199,7 @@ func (e *encoder) mapv(tag string, in reflect.Value) {
 func (e *encoder) fieldByIndex(v reflect.Value, index []int) (field reflect.Value) {
 	for _, num := range index {
 		for {
-			if v.Kind() == reflect.Ptr {
+			if v.Kind() == reflect.Pointer {
 				if v.IsNil() {
 					return reflect.Value{}
 				}
@@ -260,10 +262,10 @@ func (e *encoder) mappingv(tag string, f func()) {
 		e.flow = false
 		style = yaml_FLOW_MAPPING_STYLE
 	}
-	yaml_mapping_start_event_initialize(&e.event, nil, []byte(tag), implicit, style)
+	e.event = newMappingStartEvent(nil, []byte(tag), implicit, style)
 	e.emit()
 	f()
-	yaml_mapping_end_event_initialize(&e.event)
+	e.event = newMappingEndEvent()
 	e.emit()
 }
 
@@ -274,20 +276,20 @@ func (e *encoder) slicev(tag string, in reflect.Value) {
 		e.flow = false
 		style = yaml_FLOW_SEQUENCE_STYLE
 	}
-	e.must(yaml_sequence_start_event_initialize(&e.event, nil, []byte(tag), implicit, style))
+	e.event = newSequenceStartEvent(nil, []byte(tag), implicit, style)
 	e.emit()
 	n := in.Len()
 	for i := 0; i < n; i++ {
 		e.marshal("", in.Index(i))
 	}
-	e.must(yaml_sequence_end_event_initialize(&e.event))
+	e.event = newSequenceEndEvent()
 	e.emit()
 }
 
 // isBase60 returns whether s is in base 60 notation as defined in YAML 1.1.
 //
 // The base 60 float notation in YAML 1.1 is a terrible idea and is unsupported
-// in YAML 1.2 and by this package, but these should be marshalled quoted for
+// in YAML 1.2 and by this package, but these should be marshaled quoted for
 // the time being for compatibility with other parsers.
 func isBase60Float(s string) (result bool) {
 	// Fast path.
@@ -309,7 +311,7 @@ var base60float = regexp.MustCompile(`^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+(?:\.[0
 // isOldBool returns whether s is bool notation as defined in YAML 1.1.
 //
 // We continue to force strings that YAML 1.1 would interpret as booleans to be
-// rendered as quotes strings so that the marshalled output valid for YAML 1.1
+// rendered as quotes strings so that the marshaled output valid for YAML 1.1
 // parsing.
 func isOldBool(s string) (result bool) {
 	switch s {
@@ -330,7 +332,7 @@ func looksLikeMerge(s string) (result bool) {
 }
 
 func (e *encoder) stringv(tag string, in reflect.Value) {
-	var style yaml_scalar_style_t
+	var style yamlScalarStyle
 	s := in.String()
 	canUsePlain := true
 	switch {
@@ -422,13 +424,13 @@ func (e *encoder) nilv() {
 	e.emitScalar("null", "", "", yaml_PLAIN_SCALAR_STYLE, nil, nil, nil, nil)
 }
 
-func (e *encoder) emitScalar(value, anchor, tag string, style yaml_scalar_style_t, head, line, foot, tail []byte) {
+func (e *encoder) emitScalar(value, anchor, tag string, style yamlScalarStyle, head, line, foot, tail []byte) {
 	// TODO Kill this function. Replace all initialize calls by their underlining Go literals.
 	implicit := tag == ""
 	if !implicit {
 		tag = longTag(tag)
 	}
-	e.must(yaml_scalar_event_initialize(&e.event, []byte(anchor), []byte(tag), []byte(value), implicit, implicit, style))
+	e.event = newScalarEvent([]byte(anchor), []byte(tag), []byte(value), implicit, implicit, style)
 	e.event.head_comment = head
 	e.event.line_comment = line
 	e.event.foot_comment = foot
@@ -449,8 +451,8 @@ func (e *encoder) node(node *Node, tail string) {
 
 	// If the tag was not explicitly requested, and dropping it won't change the
 	// implicit tag of the value, don't include it in the presentation.
-	var tag = node.Tag
-	var stag = shortTag(tag)
+	tag := node.Tag
+	stag := shortTag(tag)
 	var forceQuoting bool
 	if tag != "" && node.Style&TaggedStyle == 0 {
 		if node.Kind == ScalarNode {
@@ -481,13 +483,13 @@ func (e *encoder) node(node *Node, tail string) {
 
 	switch node.Kind {
 	case DocumentNode:
-		yaml_document_start_event_initialize(&e.event, nil, nil, true)
+		e.event = newDocumentStartEvent(nil, nil, true)
 		e.event.head_comment = []byte(node.HeadComment)
 		e.emit()
 		for _, node := range node.Content {
 			e.node(node, "")
 		}
-		yaml_document_end_event_initialize(&e.event, true)
+		e.event = newDocumentEndEvent(true)
 		e.event.foot_comment = []byte(node.FootComment)
 		e.emit()
 
@@ -496,13 +498,13 @@ func (e *encoder) node(node *Node, tail string) {
 		if node.Style&FlowStyle != 0 {
 			style = yaml_FLOW_SEQUENCE_STYLE
 		}
-		e.must(yaml_sequence_start_event_initialize(&e.event, []byte(node.Anchor), []byte(longTag(tag)), tag == "", style))
+		e.event = newSequenceStartEvent([]byte(node.Anchor), []byte(longTag(tag)), tag == "", style)
 		e.event.head_comment = []byte(node.HeadComment)
 		e.emit()
 		for _, node := range node.Content {
 			e.node(node, "")
 		}
-		e.must(yaml_sequence_end_event_initialize(&e.event))
+		e.event = newSequenceEndEvent()
 		e.event.line_comment = []byte(node.LineComment)
 		e.event.foot_comment = []byte(node.FootComment)
 		e.emit()
@@ -512,7 +514,7 @@ func (e *encoder) node(node *Node, tail string) {
 		if node.Style&FlowStyle != 0 {
 			style = yaml_FLOW_MAPPING_STYLE
 		}
-		yaml_mapping_start_event_initialize(&e.event, []byte(node.Anchor), []byte(longTag(tag)), tag == "", style)
+		e.event = newMappingStartEvent([]byte(node.Anchor), []byte(longTag(tag)), tag == "", style)
 		e.event.tail_comment = []byte(tail)
 		e.event.head_comment = []byte(node.HeadComment)
 		e.emit()
@@ -537,14 +539,14 @@ func (e *encoder) node(node *Node, tail string) {
 			e.node(v, "")
 		}
 
-		yaml_mapping_end_event_initialize(&e.event)
+		e.event = newMappingEndEvent()
 		e.event.tail_comment = []byte(tail)
 		e.event.line_comment = []byte(node.LineComment)
 		e.event.foot_comment = []byte(node.FootComment)
 		e.emit()
 
 	case AliasNode:
-		yaml_alias_event_initialize(&e.event, []byte(node.Value))
+		e.event = newAliasEvent([]byte(node.Value))
 		e.event.head_comment = []byte(node.HeadComment)
 		e.event.line_comment = []byte(node.LineComment)
 		e.event.foot_comment = []byte(node.FootComment)

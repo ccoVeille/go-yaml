@@ -2,9 +2,9 @@ name: CodeQL Advanced
 
 on:
   push:
-    branches: [ main, v4, v3, v2, v1 ]
+    branches: [ main, v3, v2, v1 ]
   pull_request:
-    branches: [ main, v4, v3, v2, v1 ]
+    branches: [ main, v3, v2, v1 ]
   schedule:
   - cron: 17 13 * * 3
 
@@ -27,7 +27,7 @@ jobs:
           build-mode: autobuild
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL

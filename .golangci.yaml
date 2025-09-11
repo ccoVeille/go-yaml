@@ -1,0 +1,48 @@
+version: '2'
+
+linters:
+  enable:
+  - dupword
+  - govet
+  - misspell
+  - nolintlint
+  disable:
+  - errcheck
+  - ineffassign
+  - staticcheck
+  - unused
+  exclusions:
+    generated: lax
+    presets:
+    - comments
+    - common-false-positives
+    - legacy
+    - std-error-handling
+  settings:
+    dupword:
+      ignore:
+      - 'NULL'
+      - DOCUMENT-START
+      - BLOCK-END
+    misspell:
+      locale: US
+    nolintlint:
+      allow-unused: false
+      require-specific: true
+      require-explanation: true
+    govet:
+      enable-all: true
+      disable:
+      - fieldalignment
+      - shadow
+
+formatters:
+  enable:
+  - gofumpt
+  exclusions:
+    generated: lax
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false

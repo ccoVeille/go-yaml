@@ -29,8 +29,8 @@ import (
 // Parser, produces a node tree out of a libyaml event stream.
 
 type parser struct {
-	parser   yaml_parser_t
-	event    yaml_event_t
+	parser   yamlParser
+	event    yamlEvent
 	doc      *Node
 	anchors  map[string]*Node
 	doneInit bool
@@ -38,23 +38,21 @@ type parser struct {
 }
 
 func newParser(b []byte) *parser {
-	p := parser{}
-	if !yaml_parser_initialize(&p.parser) {
-		panic("failed to initialize YAML emitter")
+	p := parser{
+		parser: newYAMLParser(),
 	}
 	if len(b) == 0 {
 		b = []byte{'\n'}
 	}
-	yaml_parser_set_input_string(&p.parser, b)
+	p.parser.setInputString(b)
 	return &p
 }
 
 func newParserFromReader(r io.Reader) *parser {
-	p := parser{}
-	if !yaml_parser_initialize(&p.parser) {
-		panic("failed to initialize YAML emitter")
+	p := parser{
+		parser: newYAMLParser(),
 	}
-	yaml_parser_set_input_reader(&p.parser, r)
+	p.parser.setInputReader(r)
 	return &p
 }
 
@@ -69,16 +67,16 @@ func (p *parser) init() {
 
 func (p *parser) destroy() {
 	if p.event.typ != yaml_NO_EVENT {
-		yaml_event_delete(&p.event)
+		p.event.delete()
 	}
-	yaml_parser_delete(&p.parser)
+	p.parser.delete()
 }
 
 // expect consumes an event from the event stream and
 // checks that it's of the expected type.
-func (p *parser) expect(e yaml_event_type_t) {
+func (p *parser) expect(e yamlEventType) {
 	if p.event.typ == yaml_NO_EVENT {
-		if !yaml_parser_parse(&p.parser, &p.event) {
+		if !p.parser.parse(&p.event) {
 			p.fail()
 		}
 	}
@@ -89,20 +87,20 @@ func (p *parser) expect(e yaml_event_type_t) {
 		p.parser.problem = fmt.Sprintf("expected %s event but got %s", e, p.event.typ)
 		p.fail()
 	}
-	yaml_event_delete(&p.event)
+	p.event.delete()
 	p.event.typ = yaml_NO_EVENT
 }
 
 // peek peeks at the next event in the event stream,
 // puts the results into p.event and returns the event type.
-func (p *parser) peek() yaml_event_type_t {
+func (p *parser) peek() yamlEventType {
 	if p.event.typ != yaml_NO_EVENT {
 		return p.event.typ
 	}
 	// It's curious choice from the underlying API to generally return a
 	// positive result on success, but on this case return true in an error
 	// scenario. This was the source of bugs in the past (issue #666).
-	if !yaml_parser_parse(&p.parser, &p.event) || p.parser.error != yaml_NO_ERROR {
+	if !p.parser.parse(&p.event) || p.parser.error != yaml_NO_ERROR {
 		p.fail()
 	}
 	return p.event.typ
@@ -217,7 +215,7 @@ func (p *parser) alias() *Node {
 }
 
 func (p *parser) scalar() *Node {
-	var parsedStyle = p.event.scalar_style()
+	parsedStyle := p.event.scalarStyle()
 	var nodeStyle Style
 	switch {
 	case parsedStyle&yaml_DOUBLE_QUOTED_SCALAR_STYLE != 0:
@@ -229,8 +227,8 @@ func (p *parser) scalar() *Node {
 	case parsedStyle&yaml_FOLDED_SCALAR_STYLE != 0:
 		nodeStyle = FoldedStyle
 	}
-	var nodeValue = string(p.event.value)
-	var nodeTag = string(p.event.tag)
+	nodeValue := string(p.event.value)
+	nodeTag := string(p.event.tag)
 	var defaultTag string
 	if nodeStyle == 0 {
 		if nodeValue == "<<" {
@@ -248,7 +246,7 @@ func (p *parser) scalar() *Node {
 
 func (p *parser) sequence() *Node {
 	n := p.node(SequenceNode, seqTag, string(p.event.tag), "")
-	if p.event.sequence_style()&yaml_FLOW_SEQUENCE_STYLE != 0 {
+	if p.event.sequenceStyle()&yaml_FLOW_SEQUENCE_STYLE != 0 {
 		n.Style |= FlowStyle
 	}
 	p.anchor(n, p.event.anchor)
@@ -265,7 +263,7 @@ func (p *parser) sequence() *Node {
 func (p *parser) mapping() *Node {
 	n := p.node(MappingNode, mapTag, string(p.event.tag), "")
 	block := true
-	if p.event.mapping_style()&yaml_FLOW_MAPPING_STYLE != 0 {
+	if p.event.mappingStyle()&yaml_FLOW_MAPPING_STYLE != 0 {
 		block = false
 		n.Style |= FlowStyle
 	}
@@ -419,7 +417,7 @@ func (d *decoder) prepare(n *Node, out reflect.Value) (newout reflect.Value, unm
 	again := true
 	for again {
 		again = false
-		if out.Kind() == reflect.Ptr {
+		if out.Kind() == reflect.Pointer {
 			if out.IsNil() {
 				out.Set(reflect.New(out.Type().Elem()))
 			}
@@ -447,7 +445,7 @@ func (d *decoder) fieldByIndex(n *Node, v reflect.Value, index []int) (field ref
 	}
 	for _, num := range index {
 		for {
-			if v.Kind() == reflect.Ptr {
+			if v.Kind() == reflect.Pointer {
 				if v.IsNil() {
 					v.Set(reflect.New(v.Type().Elem()))
 				}
@@ -555,7 +553,7 @@ func (d *decoder) alias(n *Node, out reflect.Value) (good bool) {
 func (d *decoder) null(out reflect.Value) bool {
 	if out.CanAddr() {
 		switch out.Kind() {
-		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
+		case reflect.Interface, reflect.Pointer, reflect.Map, reflect.Slice:
 			out.Set(reflect.Zero(out.Type()))
 			return true
 		}
@@ -718,7 +716,7 @@ func (d *decoder) scalar(n *Node, out reflect.Value) bool {
 			out.Set(resolvedv)
 			return true
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		panic("yaml internal error: please report the issue")
 	}
 	d.terror(n, tag, out)
@@ -852,7 +850,7 @@ func (d *decoder) mapping(n *Node, out reflect.Value) (good bool) {
 				kkind = k.Elem().Kind()
 			}
 			if kkind == reflect.Map || kkind == reflect.Slice {
-				failf("invalid map key: %#v", k.Interface())
+				failf("cannot use '%#v' as a map key; try decoding into yaml.Node", k.Interface())
 			}
 			e := reflect.New(et).Elem()
 			if d.unmarshal(n.Content[i+1], e) || n.Content[i+1].ShortTag() == nullTag && (mapIsNew || !out.MapIndex(k).IsValid()) {

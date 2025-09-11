@@ -17,7 +17,7 @@
 //
 // Source code and other details for the project are available at GitHub:
 //
-//	https://github.com/go-yaml/yaml
+//	https://github.com/yaml/go-yaml
 package yaml
 
 import (
@@ -71,7 +71,7 @@ type Marshaler interface {
 // lowercased as the default key. Custom keys may be defined via the
 // "yaml" name in the field tag: the content preceding the first comma
 // is used as the key, and the following comma-separated options are
-// used to tweak the marshalling process (see Marshal).
+// used to tweak the marshaling process (see Marshal).
 // Conflicting names result in a runtime error.
 //
 // For example:
@@ -125,7 +125,7 @@ func (dec *Decoder) Decode(v any) (err error) {
 		return io.EOF
 	}
 	out := reflect.ValueOf(v)
-	if out.Kind() == reflect.Ptr && !out.IsNil() {
+	if out.Kind() == reflect.Pointer && !out.IsNil() {
 		out = out.Elem()
 	}
 	d.unmarshal(node, out)
@@ -143,7 +143,7 @@ func (n *Node) Decode(v any) (err error) {
 	d := newDecoder()
 	defer handleErr(&err)
 	out := reflect.ValueOf(v)
-	if out.Kind() == reflect.Ptr && !out.IsNil() {
+	if out.Kind() == reflect.Pointer && !out.IsNil() {
 		out = out.Elem()
 	}
 	d.unmarshal(n, out)
@@ -161,7 +161,7 @@ func unmarshal(in []byte, out any, strict bool) (err error) {
 	node := p.parse()
 	if node != nil {
 		v := reflect.ValueOf(out)
-		if v.Kind() == reflect.Ptr && !v.IsNil() {
+		if v.Kind() == reflect.Pointer && !v.IsNil() {
 			v = v.Elem()
 		}
 		d.unmarshal(node, v)
@@ -176,11 +176,11 @@ func unmarshal(in []byte, out any, strict bool) (err error) {
 // of the generated document will reflect the structure of the value itself.
 // Maps and pointers (to struct, string, int, etc) are accepted as the in value.
 //
-// Struct fields are only marshalled if they are exported (have an upper case
-// first letter), and are marshalled using the field name lowercased as the
+// Struct fields are only marshaled if they are exported (have an upper case
+// first letter), and are marshaled using the field name lowercased as the
 // default key. Custom keys may be defined via the "yaml" name in the field
 // tag: the content preceding the first comma is used as the key, and the
-// following comma-separated options are used to tweak the marshalling process.
+// following comma-separated options are used to tweak the marshaling process.
 // Conflicting names result in a runtime error.
 //
 // The field tag format accepted is:
@@ -376,6 +376,11 @@ func (e *TypeError) Is(target error) bool {
 		if errors.Is(err, target) {
 			return true
 		}
+
+		// Check if the error is not wrapped in the UnmarshalError.
+		if err != nil && errors.Is(err.Err, target) {
+			return true
+		}
 	}
 	return false
 }
@@ -419,9 +424,9 @@ const (
 // control over the content being decoded or encoded.
 //
 // It's worth noting that although Node offers access into details such as
-// line numbers, colums, and comments, the content when re-encoded will not
+// line numbers, columns, and comments, the content when re-encoded will not
 // have its original textual representation preserved. An effort is made to
-// render the data plesantly, and to preserve comments near the data they
+// render the data pleasantly, and to preserve comments near the data they
 // describe, though.
 //
 // Values that make use of the Node type interact with the yaml package in the
@@ -446,7 +451,7 @@ type Node struct {
 	// scalar nodes may be obtained via the ShortTag and LongTag methods.
 	Kind Kind
 
-	// Style allows customizing the apperance of the node in the tree.
+	// Style allows customizing the appearance of the node in the tree.
 	Style Style
 
 	// Tag holds the YAML tag defining the data type for the value.
@@ -458,7 +463,7 @@ type Node struct {
 	// the implicit tag diverges from the provided one.
 	Tag string
 
-	// Value holds the unescaped and unquoted represenation of the value.
+	// Value holds the unescaped and unquoted representation of the value.
 	Value string
 
 	// Anchor holds the anchor name for this node, which allows aliases to point to it.
@@ -670,15 +675,15 @@ func getStructInfo(st reflect.Type) (*structInfo, error) {
 					return nil, errors.New("option ,inline needs a map with string keys in struct " + st.String())
 				}
 				inlineMap = info.Num
-			case reflect.Struct, reflect.Ptr:
+			case reflect.Struct, reflect.Pointer:
 				ftype := field.Type
-				for ftype.Kind() == reflect.Ptr {
+				for ftype.Kind() == reflect.Pointer {
 					ftype = ftype.Elem()
 				}
 				if ftype.Kind() != reflect.Struct {
 					return nil, errors.New("option ,inline may only be used on a struct or map field")
 				}
-				if reflect.PtrTo(ftype).Implements(unmarshalerType) {
+				if reflect.PointerTo(ftype).Implements(unmarshalerType) {
 					inlineUnmarshalers = append(inlineUnmarshalers, []int{i})
 				} else {
 					sinfo, err := getStructInfo(ftype)
@@ -749,7 +754,7 @@ type IsZeroer interface {
 func isZero(v reflect.Value) bool {
 	kind := v.Kind()
 	if z, ok := v.Interface().(IsZeroer); ok {
-		if (kind == reflect.Ptr || kind == reflect.Interface) && v.IsNil() {
+		if (kind == reflect.Pointer || kind == reflect.Interface) && v.IsNil() {
 			return true
 		}
 		return z.IsZero()
@@ -757,7 +762,7 @@ func isZero(v reflect.Value) bool {
 	switch kind {
 	case reflect.String:
 		return len(v.String()) == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return v.IsNil()
 	case reflect.Slice:
 		return v.Len() == 0
@@ -791,24 +796,24 @@ func ParserGetEvents(in []byte) (string, error) {
 	p := newParser(in)
 	defer p.destroy()
 	var events strings.Builder
-	var event yaml_event_t
+	var event yamlEvent
 	for {
-		if !yaml_parser_parse(&p.parser, &event) {
+		if !p.parser.parse(&event) {
 			return "", errors.New(p.parser.problem)
 		}
 		formatted := formatEvent(&event)
 		events.WriteString(formatted)
 		if event.typ == yaml_STREAM_END_EVENT {
-			yaml_event_delete(&event)
+			event.delete()
 			break
 		}
-		yaml_event_delete(&event)
+		event.delete()
 		events.WriteByte('\n')
 	}
 	return events.String(), nil
 }
 
-func formatEvent(e *yaml_event_t) string {
+func formatEvent(e *yamlEvent) string {
 	var b strings.Builder
 	switch e.typ {
 	case yaml_STREAM_START_EVENT:
@@ -839,7 +844,7 @@ func formatEvent(e *yaml_event_t) string {
 			b.Write(e.tag)
 			b.WriteString(">")
 		}
-		switch e.scalar_style() {
+		switch e.scalarStyle() {
 		case yaml_PLAIN_SCALAR_STYLE:
 			b.WriteString(" :")
 		case yaml_LITERAL_SCALAR_STYLE:
@@ -870,7 +875,7 @@ func formatEvent(e *yaml_event_t) string {
 			b.Write(e.tag)
 			b.WriteString(">")
 		}
-		if e.sequence_style() == yaml_FLOW_SEQUENCE_STYLE {
+		if e.sequenceStyle() == yaml_FLOW_SEQUENCE_STYLE {
 			b.WriteString(" []")
 		}
 	case yaml_SEQUENCE_END_EVENT:
@@ -886,7 +891,7 @@ func formatEvent(e *yaml_event_t) string {
 			b.Write(e.tag)
 			b.WriteString(">")
 		}
-		if e.mapping_style() == yaml_FLOW_MAPPING_STYLE {
+		if e.mappingStyle() == yaml_FLOW_MAPPING_STYLE {
 			b.WriteString(" {}")
 		}
 	case yaml_MAPPING_END_EVENT:

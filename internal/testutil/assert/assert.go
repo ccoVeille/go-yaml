@@ -73,12 +73,48 @@ func ErrorMatchesf(tb miniTB, pattern string, err error, msgFormat string, args 
 	}
 }
 
-func ErrorIs(tb miniTB, want, got error) {
+func ErrorIs(tb miniTB, got, want error) {
 	tb.Helper()
 	if !errors.Is(got, want) {
 		tb.Fatalf("got %#v; want %#v", got, want)
 	}
 }
+
+// errorAsNoPanic calls errors.As, but catch possible panic and returns it as an error
+func errorAsNoPanic(tb miniTB, err error, target interface{}) (ok bool, panic error) {
+	defer func() {
+		if r := recover(); r != nil {
+			ok = false
+			panic = fmt.Errorf("panic: %v", r)
+			return
+		}
+	}()
+
+	return errors.As(err, target), nil
+}
+
+func ErrorAs(tb miniTB, err error, target interface{}) {
+	tb.Helper()
+
+	ok, panicErr := errorAsNoPanic(tb, err, target)
+	if panicErr != nil {
+		tb.Fatalf("%s", panicErr)
+		return
+	}
+	if ok {
+		return
+	}
+
+	reflectedType := reflect.TypeOf(target)
+	if reflectedType.Kind() != reflect.Pointer {
+		// this is not supposed to happen with the current implementation of [errors.As]
+		tb.Fatalf("a pointer was expected: got: %s; want: ptr", reflectedType.Kind())
+		return
+	}
+
+	tb.Fatalf("got %#v; want %s", err, reflectedType.Elem())
+}
+
 func NoError(tb miniTB, err error) {
 	tb.Helper()
 	NoErrorf(tb, err, "")
@@ -188,7 +224,7 @@ func isNil(v any) bool {
 	}
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice, reflect.Interface, reflect.UnsafePointer:
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice, reflect.Interface, reflect.UnsafePointer:
 		return rv.IsNil()
 	default:
 		return false

@@ -1,0 +1,37 @@
+name: Files Lint
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read  # for actions/checkout to fetch code
+
+jobs:
+  action-lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout-action
+      uses: actions/checkout@v5
+
+    - name: actionlint
+      uses: raven-actions/actionlint@v2.0.1
+
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout-action
+      uses: actions/checkout@v5
+
+    - name: yamllint
+      uses: ibiqlik/action-yamllint@v3
+
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout-action
+      uses: actions/checkout@v5
+
+    - name: typos-action
+      uses: crate-ci/typos@v1
