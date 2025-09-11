@@ -104,6 +104,24 @@ const (
 	FOLDED_SCALAR_STYLE                                // The folded scalar style.
 )
 
+// Convert a yamlScalarStyle to a string representation
+func (style ScalarStyle) String() string {
+	switch style {
+	case PLAIN_SCALAR_STYLE:
+		return "Plain"
+	case SINGLE_QUOTED_SCALAR_STYLE:
+		return "Single"
+	case DOUBLE_QUOTED_SCALAR_STYLE:
+		return "Double"
+	case LITERAL_SCALAR_STYLE:
+		return "Literal"
+	case FOLDED_SCALAR_STYLE:
+		return "Folded"
+	default:
+		return ""
+	}
+}
+
 type SequenceStyle Style
 
 // Sequence styles.
@@ -216,17 +234,17 @@ func (tt TokenType) String() string {
 // The token structure.
 type Token struct {
 	// The token type.
-	typ TokenType
+	Type TokenType
 
 	// The start/end of the token.
-	start_mark, end_mark Mark
+	StartMark, EndMark Mark
 
 	// The stream encoding (for STREAM_START_TOKEN).
 	encoding Encoding
 
-	// The alias/anchor/scalar value or tag/tag directive handle
+	// The alias/anchor/scalar Value or tag/tag directive handle
 	// (for ALIAS_TOKEN, ANCHOR_TOKEN, SCALAR_TOKEN, TAG_TOKEN, TAG_DIRECTIVE_TOKEN).
-	value []byte
+	Value []byte
 
 	// The tag suffix (for TAG_TOKEN).
 	suffix []byte
@@ -234,8 +252,8 @@ type Token struct {
 	// The tag directive prefix (for TAG_DIRECTIVE_TOKEN).
 	prefix []byte
 
-	// The scalar style (for SCALAR_TOKEN).
-	style ScalarStyle
+	// The scalar Style (for SCALAR_TOKEN).
+	Style ScalarStyle
 
 	// The version directive major/minor (for VERSION_DIRECTIVE_TOKEN).
 	major, minor int8
