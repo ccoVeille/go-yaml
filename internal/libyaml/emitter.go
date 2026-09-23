@@ -30,7 +30,8 @@ type WriteHandler func(emitter *Emitter, buffer []byte) error
 // EmitterState represents the current state of the emitter.
 type EmitterState int
 
-// Possible [EmitterState] values.  The transitions between these states are managed internally by the emitter.
+// [EmitterState] constants list the different states the emitter can be in.
+// The transitions between these states are managed internally by the emitter.
 const (
 	// EMIT_STREAM_START_STATE expects STREAM-START.
 	EMIT_STREAM_START_STATE EmitterState = iota

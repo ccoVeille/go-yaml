@@ -79,7 +79,8 @@ type SimpleKey struct {
 // ParserState represents the state of the parser.
 type ParserState int
 
-// Possible [ParserState] constants are the different states the parser can be in.
+// [ParserState] constants list the different states the parser can be in.
+// The transitions between these states are managed internally by the parser.
 const (
 	// PARSE_STREAM_START_STATE expects STREAM-START.
 	PARSE_STREAM_START_STATE ParserState = iota

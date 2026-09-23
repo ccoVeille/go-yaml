@@ -51,7 +51,7 @@ func (t *TagDirective) GetPrefix() string { return string(t.prefix) }
 // Encoding represents the character encoding of a YAML stream.
 type Encoding int
 
-// Possible [Encoding] values.
+// [Encoding] constants list the different character encodings.
 const (
 	// ANY_ENCODING lets the parser choose the encoding.
 	ANY_ENCODING Encoding = iota
@@ -67,7 +67,7 @@ const (
 // LineBreak represents the line break style used in YAML output.
 type LineBreak int
 
-// Possible [LineBreak] values.
+// [LineBreak] constants list the different line break styles.
 const (
 	// ANY_BREAK lets the parser choose the break type.
 	ANY_BREAK LineBreak = iota
@@ -83,13 +83,14 @@ const (
 // QuoteStyle represents the preferred quote style for scalar values.
 type QuoteStyle int
 
-// Quote style types for required quoting.
+// [QuoteStyle] constants list the different quote styles for scalar values.
 const (
 	// QuoteSingle prefers single quotes for scalar values.
 	QuoteSingle QuoteStyle = iota
 	// QuoteDouble prefers double quotes for scalar values.
 	QuoteDouble
-	// QuoteLegacy uses double quotes in the representer and single quotes in the emitter.
+	// QuoteLegacy uses double quotes in the representer and single quotes
+	// in the emitter.
 	QuoteLegacy
 )
 
@@ -106,7 +107,8 @@ func (q QuoteStyle) ScalarStyle() ScalarStyle {
 // ErrorType represents the category of error that occurred during processing.
 type ErrorType int
 
-// Possible [ErrorType] values. Many bad things could happen with the parser and emitter.
+// [ErrorType] constants list the different categories of errors that can occur
+// in the emitter and parser.
 const (
 	// No error is produced.
 	NO_ERROR ErrorType = iota
@@ -198,7 +200,8 @@ type styleInt int8
 // ScalarStyle represents the formatting style of a scalar value.
 type ScalarStyle styleInt
 
-// Possible [ScalarStyle] values.
+// [ScalarStyle] constants list the different formatting styles for scalar
+// values.
 const (
 	// ANY_SCALAR_STYLE lets the emitter choose the style.
 	ANY_SCALAR_STYLE ScalarStyle = 0
@@ -236,7 +239,8 @@ func (style ScalarStyle) String() string {
 // SequenceStyle represents the formatting style of a sequence node.
 type SequenceStyle styleInt
 
-// Possible [SequenceStyle] values.
+// [SequenceStyle] constants list the different formatting styles for sequence
+// nodes.
 const (
 	// ANY_SEQUENCE_STYLE lets the emitter choose the style.
 	ANY_SEQUENCE_STYLE SequenceStyle = iota
@@ -250,7 +254,8 @@ const (
 // MappingStyle represents the formatting style of a mapping node.
 type MappingStyle styleInt
 
-// Possible [MappingStyle] values.
+// [MappingStyle] constants list the different formatting styles for mapping
+// nodes.
 const (
 	// ANY_MAPPING_STYLE lets the emitter choose the style.
 	ANY_MAPPING_STYLE MappingStyle = iota
@@ -266,7 +271,7 @@ const (
 // TokenType represents the [Token.Type] of a scanned [Token].
 type TokenType int
 
-// Possible [TokenToken] types.
+// [TokenType] constants list the different types of tokens that can be scanned.
 const (
 	// NO_TOKEN represents an empty token.
 	NO_TOKEN TokenType = iota
